@@ -20,6 +20,7 @@ export interface ResultModel {
   smash: number
   bonus: number
   round: number
+  banked: number
   marks: number
   note: string
   actions: ResultAction[]
@@ -63,6 +64,10 @@ export class Ui {
   private readonly resetButton: HTMLButtonElement
   private resetArmed = false
   private resetTimer = 0
+  private hudCoinText = ''
+  private hudLivesShown = -1
+  private hudMaxLives = 0
+  private lifeDots: HTMLSpanElement[] = []
 
   constructor(
     parent: HTMLElement,
@@ -221,12 +226,27 @@ export class Ui {
   }
 
   setHud(coins: number, lives: number, maxLives: number): void {
-    this.hudCoins.textContent = String(coins)
-    this.hudLives.replaceChildren()
-    for (let i = 0; i < maxLives; i++) {
-      const dot = document.createElement('span')
-      dot.className = i < lives ? 'life' : 'life off'
-      this.hudLives.append(dot)
+    const coinText = String(coins)
+    if (coinText !== this.hudCoinText) {
+      this.hudCoinText = coinText
+      this.hudCoins.textContent = coinText
+    }
+    if (maxLives !== this.hudMaxLives) {
+      this.hudMaxLives = maxLives
+      this.lifeDots = []
+      this.hudLives.replaceChildren()
+      for (let i = 0; i < maxLives; i++) {
+        const dot = document.createElement('span')
+        dot.className = 'life off'
+        this.hudLives.append(dot)
+        this.lifeDots.push(dot)
+      }
+      this.hudLivesShown = -1
+    }
+    if (lives === this.hudLivesShown) return
+    this.hudLivesShown = lives
+    for (let i = 0; i < this.lifeDots.length; i++) {
+      this.lifeDots[i].className = i < lives ? 'life' : 'life off'
     }
     this.hudLives.setAttribute('aria-label', `${lives} of ${maxLives} lives left`)
   }
@@ -240,8 +260,12 @@ export class Ui {
     this.resultKicker.textContent = model.kicker
     this.resultTitle.textContent = model.title
     this.resultBody.textContent = model.win
-      ? `Smashed ${model.smash}. Lives left add ${model.bonus}. This round ${model.round}.`
-      : `Smashed ${model.smash}. Those coins stay on this device.`
+      ? model.banked > 0
+        ? `Smashed ${model.smash}. Lives left add ${model.bonus}. This round ${model.round}.`
+        : `Smashed ${model.smash}. Lives left would add ${model.bonus}. Nothing new goes in the bank.`
+      : model.banked > 0
+        ? `Smashed ${model.smash}. Those coins stay on this device.`
+        : `Smashed ${model.smash}. Nothing new goes in the bank.`
     this.resultNote.textContent = model.note
     this.resultMarks.hidden = !model.win
     this.resultMarks.replaceChildren()

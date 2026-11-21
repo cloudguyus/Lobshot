@@ -4,7 +4,7 @@ import { AimInput } from './input'
 import { LEVELS, levelById } from './levels'
 import { Simulation } from './sim'
 import { Stage } from './stage'
-import { freshSave, loadSave, writeSave, type Save } from './storage'
+import { coinsToBank, freshSave, loadSave, writeSave, type Save } from './storage'
 import { TUNING } from './tuning'
 import { Ui, type LevelButtonModel } from './ui'
 import type { LevelDef } from './types'
@@ -28,7 +28,10 @@ export class Game {
   private flightTime = 0
   private celebrate = 0
   private committed = false
+  private replay = false
   private finished = false
+  private readonly visualViewport: VisualViewport | null
+  private readonly resizeObserver: ResizeObserver
   private breaksThisShot = 0
   private readonly onKey: (event: KeyboardEvent) => void
   private readonly onResize: () => void
@@ -75,8 +78,13 @@ export class Game {
       const fallback = document.querySelector<HTMLElement>('#fallback')
       if (fallback) fallback.hidden = false
     }
+    this.visualViewport = window.visualViewport
+    this.resizeObserver = new ResizeObserver(() => this.stage.resize())
+    this.resizeObserver.observe(canvas)
     window.addEventListener('keydown', this.onKey)
     window.addEventListener('resize', this.onResize)
+    this.visualViewport?.addEventListener('resize', this.onResize)
+    this.visualViewport?.addEventListener('scroll', this.onResize)
     canvas.addEventListener('webglcontextlost', this.onLost)
   }
 
@@ -96,6 +104,9 @@ export class Game {
     this.stage.destroy()
     window.removeEventListener('keydown', this.onKey)
     window.removeEventListener('resize', this.onResize)
+    this.visualViewport?.removeEventListener('resize', this.onResize)
+    this.visualViewport?.removeEventListener('scroll', this.onResize)
+    this.resizeObserver.disconnect()
     this.canvas.removeEventListener('webglcontextlost', this.onLost)
   }
 
@@ -195,6 +206,7 @@ export class Game {
     this.sim.settle()
     this.stage.clearDynamics()
     this.stage.setField(this.level)
+    this.replay = this.save.cleared.includes(id)
     this.committed = false
     this.finished = false
     this.flightTime = 0
@@ -249,7 +261,7 @@ export class Game {
   private win(): void {
     if (!this.sim || this.finished) return
     const bonus = this.sim.lives * TUNING.lifeBonus
-    const { smash, earned } = this.bank(bonus)
+    const { smash, earned, banked } = this.bank(bonus)
     const key = String(this.level.id)
     const previousBest = this.save.best[key] ?? 0
     this.save.best[key] = Math.max(previousBest, earned)
@@ -268,8 +280,13 @@ export class Game {
       smash,
       bonus,
       round: earned,
+      banked,
       marks: kilnMarks(this.sim.lives),
-      note: earned >= previousBest ? 'Best round on this device.' : `Best ${this.save.best[key]}.`,
+      note: this.replay
+        ? 'Already cleared. The coin bank stays the same.'
+        : earned >= previousBest
+          ? 'Best round on this device.'
+          : `Best ${this.save.best[key]}.`,
       actions: [
         ...(hasNext ? [{ label: 'Next level', primary: true, run: () => this.startLevel(this.level.id + 1) }] : []),
         { label: 'Replay', primary: !hasNext, run: () => this.startLevel(this.level.id) },
@@ -280,7 +297,7 @@ export class Game {
 
   private lose(): void {
     if (!this.sim || this.finished) return
-    const { smash } = this.bank(0)
+    const { smash, banked } = this.bank(0)
     this.finished = true
     this.mode = 'lost'
     this.input.setEnabled(false)
@@ -292,8 +309,11 @@ export class Game {
       smash,
       bonus: 0,
       round: smash,
+      banked,
       marks: 0,
-      note: 'Five lives a level. The shelves reset when you try again.',
+      note: banked === 0 && this.replay
+        ? 'Already cleared. The coin bank stays the same.'
+        : 'Five lives a level. The shelves reset when you try again.',
       actions: [
         { label: 'Try again', primary: true, run: () => this.startLevel(this.level.id) },
         { label: 'Levels', run: () => this.openLevels() },
@@ -301,14 +321,15 @@ export class Game {
     })
   }
 
-  private bank(bonus: number): { smash: number; earned: number } {
-    if (!this.sim || this.committed) return { smash: 0, earned: 0 }
+  private bank(bonus: number): { smash: number; earned: number; banked: number } {
+    if (!this.sim || this.committed) return { smash: 0, earned: 0, banked: 0 }
     const smash = this.sim.coins
     const earned = smash + bonus
-    this.save.coins += earned
+    const banked = coinsToBank(this.replay, smash, bonus)
+    this.save.coins += banked
     this.committed = true
     writeSave(this.save)
-    return { smash, earned }
+    return { smash, earned, banked }
   }
 
   private toggleMute(): void {
@@ -370,7 +391,7 @@ export class Game {
   }
 
   private shownCoins(): number {
-    if (!this.sim || this.committed) return this.save.coins
+    if (!this.sim || this.committed || this.replay) return this.save.coins
     return this.save.coins + this.sim.coins
   }
 

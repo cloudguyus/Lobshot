@@ -81,5 +81,5 @@ vercel.json             static build settings
 ## Limits
 
 - This repo was checked in desktop Chrome, including a tall window and a wide one, not on a physical iPhone.
-- Replaying a cleared level adds the new coins to the device total.
+- The coin bank grows on the first clear of a level. A replay can raise the best round, and it leaves the bank as it is.
 - Shot outcomes depend on the fixed physics step. After changing cannon-es or the tuning numbers, run `npm run solve` and commit the new `scripts/solutions.json`.

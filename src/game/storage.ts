@@ -11,6 +11,12 @@ export interface Save {
   muted: boolean
 }
 
+/** First clear banks the round. A replay keeps the device total where it is. */
+export function coinsToBank(alreadyCleared: boolean, smash: number, bonus: number): number {
+  if (alreadyCleared) return 0
+  return smash + bonus
+}
+
 export function freshSave(): Save {
   return { v: 1, unlocked: 1, coins: 0, best: {}, cleared: [], muted: false }
 }

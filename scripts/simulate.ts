@@ -1,12 +1,20 @@
 import { readFileSync, existsSync } from 'node:fs'
 import { anglesFromPoint } from '../src/game/ballistics'
 import { LEVELS } from '../src/game/levels'
+import { coinsToBank } from '../src/game/storage'
 import { Simulation } from '../src/game/sim'
 import { TUNING } from '../src/game/tuning'
 import type { LevelDef, Shot } from '../src/game/types'
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message)
+}
+
+function checkCoins(): void {
+  assert(coinsToBank(false, 33, 15) === 48, 'a first clear banks smash coins plus the life bonus')
+  assert(coinsToBank(true, 33, 15) === 0, 'a replay does not add coins')
+  assert(coinsToBank(true, 10, 0) === 0, 'a failed replay does not add coins')
+  assert(coinsToBank(false, 10, 0) === 10, 'a first failed attempt keeps the smashed coins')
 }
 
 function checkBallistics(): void {
@@ -90,6 +98,7 @@ function parseShots(argv: string[]): Shot[] {
 
 function main(): void {
   checkBallistics()
+  checkCoins()
   variety()
   const argv = process.argv.slice(2)
   const levelFlag = argv.indexOf('--level')
