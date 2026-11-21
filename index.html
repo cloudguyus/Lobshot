@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+    <meta name="description" content="Lobshot is a pocket 3D cannon game. Aim, fire, and smash the kiln shelves." />
+    <meta name="theme-color" content="#1b2438" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Lobshot" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>Lobshot</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="c"></canvas>
+      <div id="fallback" hidden>
+        <div class="sheet sheet-static">
+          <p class="eyebrow">Lobshot</p>
+          <h1>WebGL is off</h1>
+          <p>This range draws with WebGL, and this browser does not have it available. Open the page in Safari or Chrome, then reload.</p>
+        </div>
+      </div>
+      <div id="ui"></div>
+    </div>
+    <noscript>
+      <div class="sheet sheet-static">
+        <h1 class="wordmark">Lob<span>shot</span></h1>
+        <p>JavaScript is off, so the range cannot load. Turn it on and reload.</p>
+      </div>
+    </noscript>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

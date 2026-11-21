@@ -1,0 +1,27 @@
+{
+  "name": "lobshot",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "tsc --noEmit && tsx scripts/simulate.ts && vite build",
+    "preview": "vite preview --host --port 4173",
+    "test": "tsx scripts/simulate.ts",
+    "solve": "tsx scripts/solve.ts",
+    "icons": "node scripts/make-icons.mjs"
+  },
+  "dependencies": {
+    "cannon-es": "0.20.0",
+    "three": "0.187.0"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@types/three": "^0.187.0",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "vite": "8.3.8"
+  }
+}
