@@ -61,6 +61,10 @@ export class Ui {
   private readonly resultNote: HTMLElement
   private readonly resultActions: HTMLElement
   private readonly resetButton: HTMLButtonElement
+  private readonly lifeDots: HTMLSpanElement[] = []
+  private lastCoins = -1
+  private lastLives = -1
+  private lastMaxLives = -1
   private resetArmed = false
   private resetTimer = 0
 
@@ -221,12 +225,27 @@ export class Ui {
   }
 
   setHud(coins: number, lives: number, maxLives: number): void {
-    this.hudCoins.textContent = String(coins)
-    this.hudLives.replaceChildren()
-    for (let i = 0; i < maxLives; i++) {
-      const dot = document.createElement('span')
-      dot.className = i < lives ? 'life' : 'life off'
-      this.hudLives.append(dot)
+    if (this.lifeDots.length !== maxLives) {
+      this.hudLives.replaceChildren()
+      this.lifeDots.length = 0
+      for (let i = 0; i < maxLives; i++) {
+        const dot = document.createElement('span')
+        dot.className = 'life'
+        this.hudLives.append(dot)
+        this.lifeDots.push(dot)
+      }
+      this.lastLives = -1
+      this.lastMaxLives = -1
+    }
+    if (coins !== this.lastCoins) {
+      this.lastCoins = coins
+      this.hudCoins.textContent = String(coins)
+    }
+    if (lives === this.lastLives && maxLives === this.lastMaxLives) return
+    this.lastLives = lives
+    this.lastMaxLives = maxLives
+    for (let i = 0; i < this.lifeDots.length; i++) {
+      this.lifeDots[i].classList.toggle('off', i >= lives)
     }
     this.hudLives.setAttribute('aria-label', `${lives} of ${maxLives} lives left`)
   }

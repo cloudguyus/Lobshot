@@ -2,6 +2,7 @@ import { readFileSync, existsSync } from 'node:fs'
 import { anglesFromPoint } from '../src/game/ballistics'
 import { LEVELS } from '../src/game/levels'
 import { Simulation } from '../src/game/sim'
+import { clearPayout, freshSave } from '../src/game/storage'
 import { TUNING } from '../src/game/tuning'
 import type { LevelDef, Shot } from '../src/game/types'
 
@@ -18,6 +19,33 @@ function checkBallistics(): void {
     const delta = Math.abs(angles[i] - expected[i])
     assert(delta < 0.02, `angle ${angles[i]} != ${expected[i]}`)
   }
+}
+
+function replayedClearDoesNotChangeCoins(): void {
+  const save = freshSave()
+  const firstSmash = 20
+  const firstBonus = 15
+  const firstEarned = firstSmash + firstBonus
+  save.coins += clearPayout(save.cleared.includes(1), firstSmash, firstBonus)
+  save.best['1'] = Math.max(save.best['1'] ?? 0, firstEarned)
+  if (!save.cleared.includes(1)) save.cleared.push(1)
+  assert(save.coins === firstEarned, 'first clear banks smash coins and the life bonus')
+  assert(save.best['1'] === firstEarned, 'first clear records the round')
+
+  const before = save.coins
+  const replaySmash = 40
+  const replayBonus = 25
+  const alreadyCleared = save.cleared.includes(1)
+  const replayEarned = replaySmash + replayBonus
+  save.coins += clearPayout(alreadyCleared, replaySmash, replayBonus)
+  save.best['1'] = Math.max(save.best['1'] ?? 0, replayEarned)
+  assert(alreadyCleared, 'the second clear is a replay')
+  assert(save.coins === before, 'a replayed clear does not change coins')
+  assert(save.best['1'] === replayEarned, 'a better replay still updates best')
+
+  const failed = freshSave()
+  failed.coins += clearPayout(failed.cleared.includes(1), 9, 0)
+  assert(failed.coins === 9, 'an uncleared fail still banks smash coins')
 }
 
 function variety(): void {
@@ -91,6 +119,7 @@ function parseShots(argv: string[]): Shot[] {
 function main(): void {
   checkBallistics()
   variety()
+  replayedClearDoesNotChangeCoins()
   const argv = process.argv.slice(2)
   const levelFlag = argv.indexOf('--level')
   if (levelFlag >= 0) {

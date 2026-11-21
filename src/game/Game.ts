@@ -4,7 +4,7 @@ import { AimInput } from './input'
 import { LEVELS, levelById } from './levels'
 import { Simulation } from './sim'
 import { Stage } from './stage'
-import { freshSave, loadSave, writeSave, type Save } from './storage'
+import { clearPayout, freshSave, loadSave, writeSave, type Save } from './storage'
 import { TUNING } from './tuning'
 import { Ui, type LevelButtonModel } from './ui'
 import type { LevelDef } from './types'
@@ -30,6 +30,8 @@ export class Game {
   private committed = false
   private finished = false
   private breaksThisShot = 0
+  private resizeFrame = 0
+  private readonly viewport = window.visualViewport
   private readonly onKey: (event: KeyboardEvent) => void
   private readonly onResize: () => void
   private readonly onLost: (event: Event) => void
@@ -68,7 +70,13 @@ export class Game {
       if (this.mode === 'levels') this.showTitle()
       else if (this.mode !== 'title') this.openLevels()
     }
-    this.onResize = () => this.stage.resize()
+    this.onResize = () => {
+      cancelAnimationFrame(this.resizeFrame)
+      this.resizeFrame = requestAnimationFrame(() => {
+        this.resizeFrame = 0
+        this.stage.resize()
+      })
+    }
     this.onLost = (event) => {
       event.preventDefault()
       this.stop()
@@ -77,6 +85,9 @@ export class Game {
     }
     window.addEventListener('keydown', this.onKey)
     window.addEventListener('resize', this.onResize)
+    window.addEventListener('orientationchange', this.onResize)
+    this.viewport?.addEventListener('resize', this.onResize)
+    this.viewport?.addEventListener('scroll', this.onResize)
     canvas.addEventListener('webglcontextlost', this.onLost)
   }
 
@@ -92,10 +103,15 @@ export class Game {
 
   destroy(): void {
     this.stop()
+    cancelAnimationFrame(this.resizeFrame)
+    this.resizeFrame = 0
     this.input.destroy()
     this.stage.destroy()
     window.removeEventListener('keydown', this.onKey)
     window.removeEventListener('resize', this.onResize)
+    window.removeEventListener('orientationchange', this.onResize)
+    this.viewport?.removeEventListener('resize', this.onResize)
+    this.viewport?.removeEventListener('scroll', this.onResize)
     this.canvas.removeEventListener('webglcontextlost', this.onLost)
   }
 
@@ -248,12 +264,13 @@ export class Game {
 
   private win(): void {
     if (!this.sim || this.finished) return
+    const alreadyCleared = this.save.cleared.includes(this.level.id)
     const bonus = this.sim.lives * TUNING.lifeBonus
-    const { smash, earned } = this.bank(bonus)
+    const { smash, earned } = this.bank(bonus, alreadyCleared)
     const key = String(this.level.id)
     const previousBest = this.save.best[key] ?? 0
     this.save.best[key] = Math.max(previousBest, earned)
-    if (!this.save.cleared.includes(this.level.id)) this.save.cleared.push(this.level.id)
+    if (!alreadyCleared) this.save.cleared.push(this.level.id)
     if (this.level.id < LEVELS.length) this.save.unlocked = Math.max(this.save.unlocked, this.level.id + 1)
     writeSave(this.save)
     this.finished = true
@@ -301,11 +318,11 @@ export class Game {
     })
   }
 
-  private bank(bonus: number): { smash: number; earned: number } {
+  private bank(bonus: number, alreadyCleared = false): { smash: number; earned: number } {
     if (!this.sim || this.committed) return { smash: 0, earned: 0 }
     const smash = this.sim.coins
     const earned = smash + bonus
-    this.save.coins += earned
+    this.save.coins += clearPayout(alreadyCleared, smash, bonus)
     this.committed = true
     writeSave(this.save)
     return { smash, earned }

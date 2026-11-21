@@ -15,6 +15,12 @@ export function freshSave(): Save {
   return { v: 1, unlocked: 1, coins: 0, best: {}, cleared: [], muted: false }
 }
 
+/** Coins a win adds. Replaying a cleared level pays neither smash coins nor the life bonus. */
+export function clearPayout(alreadyCleared: boolean, smash: number, bonus: number): number {
+  if (alreadyCleared) return 0
+  return smash + bonus
+}
+
 function clampLevel(id: number): number {
   if (!Number.isInteger(id)) return 1
   return Math.max(1, Math.min(LEVELS.length, id))
